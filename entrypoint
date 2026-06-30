@@ -1,0 +1,9 @@
+#!/bin/sh
+###############################################################################
+# RYSEN IPSC UDP proxy entrypoint
+# Copyright (C) 2026 Shane Daley, M0VUB <shane@freestar.network>
+###############################################################################
+
+cd /opt/rysen-sp-ipsc
+
+exec python /opt/rysen-sp-ipsc/ipsc_proxy.py -c /opt/rysen-sp-ipsc/ipsc-proxy.cfg
