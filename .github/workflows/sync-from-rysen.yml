@@ -1,0 +1,69 @@
+name: Sync from RYSEN
+
+on:
+  workflow_dispatch:
+    inputs:
+      rysen_ref:
+        description: RYSEN git ref (branch, tag, or SHA)
+        required: false
+        default: ipsc
+  repository_dispatch:
+    types: [rysen-ipsc-updated]
+  schedule:
+    # Daily fallback if RYSEN push webhook is not wired yet
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SP-IPSC
+        uses: actions/checkout@v4
+
+      - name: Resolve RYSEN ref
+        id: ref
+        run: |
+          REF="${{ github.event.client_payload.ref }}"
+          if [ -z "$REF" ]; then
+            REF="${{ github.event.inputs.rysen_ref }}"
+          fi
+          if [ -z "$REF" ]; then
+            REF="ipsc"
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout RYSEN source
+        uses: actions/checkout@v4
+        with:
+          repository: ShaYmez/RYSEN
+          ref: ${{ steps.ref.outputs.ref }}
+          path: rysen-src
+          sparse-checkout: |
+            ipsc_proxy.py
+            ipsc_const.py
+            ipsc-proxy-SAMPLE.cfg
+            tests/test_ipsc_proxy.py
+          sparse-checkout-cone-mode: false
+
+      - name: Copy synced files
+        run: |
+          mkdir -p sync tests
+          cp rysen-src/ipsc_proxy.py rysen-src/ipsc_const.py rysen-src/ipsc-proxy-SAMPLE.cfg sync/
+          cp rysen-src/tests/test_ipsc_proxy.py tests/
+          git -C rysen-src rev-parse HEAD > sync/.rysen-sha
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sync/ipsc_proxy.py sync/ipsc_const.py sync/ipsc-proxy-SAMPLE.cfg sync/.rysen-sha tests/test_ipsc_proxy.py
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+          SHA=$(cat sync/.rysen-sha)
+          git commit -m "sync: update from RYSEN @ ${SHA:0:7}"
+          git push

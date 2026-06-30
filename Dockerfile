@@ -7,7 +7,9 @@ RUN adduser -D -u 54000 radio && \
     pip install --no-cache-dir --upgrade pip
 
 WORKDIR /opt/rysen-sp-ipsc
-COPY --chown=radio:radio . .
+
+COPY requirements.txt version.txt ./
+COPY sync/ipsc_proxy.py sync/ipsc_const.py sync/ipsc-proxy-SAMPLE.cfg ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 

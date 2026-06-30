@@ -1,14 +1,27 @@
-# RYSEN IPSC UDP Proxy
+# RYSEN IPSC UDP Proxy (Docker image)
 
 Motorola IPSC UDP proxy for the [RYSEN](https://github.com/ShaYmez/RYSEN) stack — single public CPS Master port (**56002**) to many backend IPSC master slots.
 
-Modelled on [RYSEN-SP-SELFCARE](https://github.com/ShaYmez/RYSEN-SP-SELFCARE) (hotspot proxy). Keeps a **separate Docker image** so IPSC deployments do not need the full RYSEN image for the proxy service.
+Published as **`shaymez/rysen-sp-ipsc:latest`**, modelled on [RYSEN-SP-SELFCARE](https://github.com/ShaYmez/RYSEN-SP-SELFCARE) (hotspot proxy). Keeps a **separate slim Docker image** so IPSC deployments do not need the full RYSEN image for the proxy service.
 
-`ipsc_proxy.py` and `ipsc_const.py` are maintained in sync with the main RYSEN repo.
+## Develop in RYSEN; publish here
+
+**Source of truth:** [ShaYmez/RYSEN](https://github.com/ShaYmez/RYSEN) (`ipsc` branch). Edit proxy logic, constants, sample config, and tests **only in RYSEN**.
+
+This repo **syncs** those files into [`sync/`](sync/) and [`tests/`](tests/), then builds and pushes the Docker image. Do not hand-edit synced copies — they are overwritten by [`.github/workflows/sync-from-rysen.yml`](.github/workflows/sync-from-rysen.yml).
+
+| Synced from RYSEN | Local path |
+|-------------------|------------|
+| `ipsc_proxy.py` | `sync/ipsc_proxy.py` |
+| `ipsc_const.py` | `sync/ipsc_const.py` |
+| `ipsc-proxy-SAMPLE.cfg` | `sync/ipsc-proxy-SAMPLE.cfg` |
+| `tests/test_ipsc_proxy.py` | `tests/test_ipsc_proxy.py` |
+
+Refresh: **Actions → Sync from RYSEN** (manual), `repository_dispatch` event `rysen-ipsc-updated`, or daily scheduled sync. A sync commit triggers **Build-RYSEN-SP-IPSC** (tests, then image push).
 
 ## Quick start (Docker)
 
-1. Copy `ipsc-proxy-SAMPLE.cfg` to your host config path (e.g. `/etc/rysen/ipsc-proxy.cfg`).
+1. Copy `sync/ipsc-proxy-SAMPLE.cfg` to your host config path (e.g. `/etc/rysen/ipsc-proxy.cfg`).
 2. Set `MASTER` to the RYSEN container IP on your compose network (default `172.16.238.10`).
 3. Match `DESTPORTSTART` / `DESTPORTEND` to the IPSC `GENERATOR` port range in `rysen.cfg`.
 
@@ -33,9 +46,9 @@ ipsc-proxy:
 
 ```bash
 pip install -r requirements.txt
-cp ipsc-proxy-SAMPLE.cfg ipsc-proxy.cfg
+cp sync/ipsc-proxy-SAMPLE.cfg ipsc-proxy.cfg
 # edit ipsc-proxy.cfg
-python ipsc_proxy.py -c ipsc-proxy.cfg
+PYTHONPATH=sync python sync/ipsc_proxy.py -c ipsc-proxy.cfg
 ```
 
 ## Configuration
@@ -54,7 +67,8 @@ Environment overrides: `FDPROXY_IPV6`, `FDPROXY_CLIENTINFO`, `FDPROXY_LISTENPORT
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -v
+pip install -r requirements.txt
+PYTHONPATH=sync python -m unittest discover -s tests -v
 ```
 
 ## Build image locally
@@ -62,6 +76,10 @@ python -m unittest discover -s tests -v
 ```bash
 docker build -t shaymez/rysen-sp-ipsc:latest .
 ```
+
+## CI secrets
+
+Docker Hub push requires repository secrets: `DOCKER_USERNAME`, `DOCKER_PASSWORD`.
 
 ## Related
 
