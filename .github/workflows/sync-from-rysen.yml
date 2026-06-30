@@ -9,9 +9,6 @@ on:
         default: ipsc
   repository_dispatch:
     types: [rysen-ipsc-updated]
-  schedule:
-    # Fallback when RYSEN push dispatch is not wired; uses repo variable RYSEN_SYNC_REF (default ipsc)
-    - cron: '0 6 * * *'
 
 permissions:
   contents: write
