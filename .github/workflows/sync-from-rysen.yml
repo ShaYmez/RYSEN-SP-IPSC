@@ -10,7 +10,7 @@ on:
   repository_dispatch:
     types: [rysen-ipsc-updated]
   schedule:
-    # Daily fallback if RYSEN push webhook is not wired yet
+    # Fallback when RYSEN push dispatch is not wired; uses repo variable RYSEN_SYNC_REF (default ipsc)
     - cron: '0 6 * * *'
 
 permissions:
@@ -31,9 +31,13 @@ jobs:
             REF="${{ github.event.inputs.rysen_ref }}"
           fi
           if [ -z "$REF" ]; then
+            REF="${{ vars.RYSEN_SYNC_REF }}"
+          fi
+          if [ -z "$REF" ]; then
             REF="ipsc"
           fi
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Syncing from RYSEN ref: $REF"
 
       - name: Checkout RYSEN source
         uses: actions/checkout@v4

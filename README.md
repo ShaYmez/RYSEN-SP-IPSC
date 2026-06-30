@@ -17,7 +17,26 @@ This repo **syncs** those files into [`sync/`](sync/) and [`tests/`](tests/), th
 | `ipsc-proxy-SAMPLE.cfg` | `sync/ipsc-proxy-SAMPLE.cfg` |
 | `tests/test_ipsc_proxy.py` | `tests/test_ipsc_proxy.py` |
 
-Refresh: **Actions → Sync from RYSEN** (manual), `repository_dispatch` event `rysen-ipsc-updated`, or daily scheduled sync. A sync commit triggers **Build-RYSEN-SP-IPSC** (tests, then image push).
+Refresh: **Actions → Sync from RYSEN** (manual), push to proxy files on RYSEN (`ipsc` or `master`), `repository_dispatch`, or daily scheduled sync. A sync commit triggers **Build-RYSEN-SP-IPSC** (tests, then image push).
+
+### Wiring RYSEN → this repo
+
+```
+RYSEN push (ipsc or master, proxy paths)
+    → RYSEN: Sync satellite proxy repos
+    → repository_dispatch → RYSEN-SP-IPSC: Sync from RYSEN
+    → commit sync/ if changed → Build-RYSEN-SP-IPSC → Docker Hub
+```
+
+1. **PAT in RYSEN** — create a fine-grained or classic PAT that can trigger workflows on `ShaYmez/RYSEN-SP-IPSC`. Add it as repository secret **`SATELLITE_DISPATCH_TOKEN`** on [RYSEN](https://github.com/ShaYmez/RYSEN/settings/secrets/actions) (reuse the same secret when SELFCARE gets the same pattern).
+
+2. **RYSEN workflow** — [`.github/workflows/sync-satellite-repos.yml`](https://github.com/ShaYmez/RYSEN/blob/ipsc/.github/workflows/sync-satellite-repos.yml) on the `ipsc` branch (and `master` after merge). On push to proxy files it sends `client_payload.ref` = the branch you pushed (`ipsc` today, `master` next week).
+
+3. **Scheduled / manual fallback ref** — on this repo, set Actions variable **`RYSEN_SYNC_REF`** to `ipsc` now; change to `master` after RYSEN merge. Used by the daily cron and manual sync when no ref is passed. Push-triggered sync always uses the branch that was pushed.
+
+4. **Docker Hub** — secrets `DOCKER_USERNAME` and `DOCKER_PASSWORD` on this repo for the build job.
+
+After `ipsc` → `master` merge: update `RYSEN_SYNC_REF` to `master`. No workflow edits required — push dispatches already pass `github.ref_name`.
 
 ## Quick start (Docker)
 
