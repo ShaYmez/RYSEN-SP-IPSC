@@ -6,12 +6,15 @@ on:
       rysen_ref:
         description: RYSEN git ref (branch, tag, or SHA)
         required: false
-        default: ipsc
+        default: master
   repository_dispatch:
     types: [rysen-ipsc-updated]
 
+# contents: push sync commit
+# actions: workflow_dispatch Build after sync (GITHUB_TOKEN pushes do not trigger on.push)
 permissions:
   contents: write
+  actions: write
 
 jobs:
   sync:
@@ -31,7 +34,7 @@ jobs:
             REF="${{ vars.RYSEN_SYNC_REF }}"
           fi
           if [ -z "$REF" ]; then
-            REF="ipsc"
+            REF="master"
           fi
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Syncing from RYSEN ref: $REF"
@@ -57,14 +60,31 @@ jobs:
           git -C rysen-src rev-parse HEAD > sync/.rysen-sha
 
       - name: Commit if changed
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add sync/ipsc_proxy.py sync/ipsc_const.py sync/ipsc-proxy-SAMPLE.cfg sync/.rysen-sha tests/test_ipsc_proxy.py
           if git diff --staged --quiet; then
             echo "No changes to sync"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           SHA=$(cat sync/.rysen-sha)
           git commit -m "sync: update from RYSEN @ ${SHA:0:7}"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN commits do not fire on.push workflows — kick Build explicitly.
+      - name: Trigger Docker image build
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'image.yml',
+              ref: 'master',
+            })
+            console.log('Dispatched Build-RYSEN-SP-IPSC (image.yml)')
